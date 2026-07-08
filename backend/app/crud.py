@@ -13,7 +13,9 @@ def create_candidate(db: Session, candidate: schemas.CandidateCreate):
         last_name=candidate.last_name,
         email=candidate.email,
         phone=candidate.phone,
-        cv_path=candidate.cv_path
+        cv_path=candidate.cv_path,
+        cv_text=candidate.cv_text,  # ← NEW LINE
+
     )
     db.add(db_candidate)
     db.commit()
@@ -150,3 +152,27 @@ def schedule_interview(db: Session, token: str, scheduled_at: datetime, mode: st
     db.refresh(interview)
     return interview
 
+# --- MESSAGE CRUD ---
+
+def save_message(db: Session, interview_id: int, role: str, content: str):
+    message = models.Message(
+        interview_id=interview_id,
+        role=role,
+        content=content
+    )
+    db.add(message)
+    db.commit()
+    db.refresh(message)
+    return message
+
+def get_messages(db: Session, interview_id: int):
+    return db.query(models.Message).filter(
+        models.Message.interview_id == interview_id
+    ).order_by(models.Message.created_at).all()
+
+
+def count_ai_questions(db: Session, interview_id: int) -> int:
+    return db.query(models.Message).filter(
+        models.Message.interview_id == interview_id,
+        models.Message.role == "ai"
+    ).count()

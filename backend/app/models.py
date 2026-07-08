@@ -16,6 +16,7 @@ class Candidate(Base):
     email = Column(String(255), unique=True, nullable=False)
     phone = Column(String(20))
     cv_path = Column(String(255))
+    cv_text = Column(Text, nullable=True)  # ← NEW LINE
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     interviews = relationship("Interview", back_populates="candidate")
@@ -74,3 +75,12 @@ class InterviewStatus(str, Enum):
     IN_PROGRESS = "In Progress"
     COMPLETED = "Completed"    
   
+
+class Message(Base):
+    __tablename__ = "messages"
+
+    id = Column(Integer, primary_key=True, index=True)
+    interview_id = Column(Integer, ForeignKey("interviews.id"))
+    role = Column(String(20))  # "ai" or "candidate"
+    content = Column(Text)
+    created_at = Column(DateTime, default=func.now())

@@ -22,6 +22,9 @@ from app.email_service import (
     send_interview_email,
     send_recruiter_notification,
 )
+from ai_agent.ai_service import start_interview, test_groq_connection, test_system_prompt, continue_interview, MAX_QUESTIONS
+
+
 
 def ensure_database_schema():
     models.Base.metadata.create_all(bind=engine)
@@ -277,4 +280,124 @@ def schedule_interview(
         raise HTTPException(status_code=400, detail=str(e))
     
 
+@app.get("/test-ai")
+def test_ai():
+    return {"response": test_groq_connection()}
 
+@app.get("/test-prompt")
+def test_prompt():
+    return {"response": test_system_prompt()}
+
+
+
+@app.post("/interviews/{token}/start")
+def start_interview_route(token: str, db: Session = Depends(get_db)):
+    # Step 1: find the interview using the token
+    interview = db.query(models.Interview).filter(
+        models.Interview.token == token
+    ).first()
+    
+    if interview is None:
+        raise HTTPException(status_code=404, detail="Interview not found")
+    
+    # Step 2: get the job from the database
+    job = db.query(models.Job).filter(
+        models.Job.id == interview.job_id
+    ).first()
+    
+    if job is None:
+        raise HTTPException(status_code=404, detail="Job not found")
+    
+    # Step 3: get the candidate from the database
+    candidate = db.query(models.Candidate).filter(
+        models.Candidate.id == interview.candidate_id
+    ).first()
+    
+    # Step 4: update interview status to "In Progress"
+    interview.status = "In Progress"
+    db.commit()
+    
+    # Step 5: send everything to AI and get first question
+    candidate_cv=candidate.cv_text or "No CV provided yet"
+    try:
+        first_question = start_interview(
+            job_title=job.title,
+            job_description=job.description,
+            required_skills=job.required_skills,
+            candidate_cv=candidate_cv,
+            candidate_name=f"{candidate.first_name} {candidate.last_name}".strip()
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"AI interview start failed: {exc}") from exc
+    
+    return {
+        "message": "Interview started",
+        "candidate": candidate.first_name,
+        "job": job.title,
+        "first_question": first_question
+    }
+
+MAX_QUESTIONS = 25  # hard safety cap
+
+@app.post("/interviews/{token}/message")
+def send_message(token: str, payload: schemas.MessageCreate, db: Session = Depends(get_db)):
+    interview = db.query(models.Interview).filter(models.Interview.token == token).first()
+    if not interview:
+        raise HTTPException(status_code=404, detail="Interview not found")
+
+    job = db.query(models.Job).filter(models.Job.id == interview.job_id).first()
+    if job is None:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    candidate = db.query(models.Candidate).filter(models.Candidate.id == interview.candidate_id).first()
+    if candidate is None:
+        raise HTTPException(status_code=404, detail="Candidate not found")
+
+    # 1. Save the candidate's answer
+    crud.save_message(
+        db=db,
+        interview_id=interview.id,
+        role="candidate",
+        content=payload.content
+    )
+
+    # 2. Count how many questions the AI has already asked
+    questions_asked = crud.count_ai_questions(db, interview.id)
+
+    # 3. Get full conversation history to send to AI
+    history = crud.get_messages(db, interview.id)
+
+    # 4. Ask AI for the next message (you already built this in Day 3/4)
+    ai_response = continue_interview(
+        job_title=job.title,
+        job_description=job.description,
+        required_skills=job.required_skills,
+        candidate_cv=candidate.cv_text or "No CV provided",
+        candidate_name=f"{candidate.first_name} {candidate.last_name}".strip(),
+        conversation_history=history,
+        force_end=(questions_asked >= MAX_QUESTIONS)
+    )
+
+    # 5. Check if this is the end
+    interview_ended = "[INTERVIEW_END]" in ai_response
+    clean_response = ai_response.replace("[INTERVIEW_END]", "").strip()
+
+    # 6. Save AI's message
+    crud.save_message(
+        db=db,
+        interview_id=interview.id,
+        role="ai",
+        content=clean_response
+    )
+
+    # 7. If ended, update statuses
+    if interview_ended:
+        interview.status = "Completed"
+        candidate.status = "Interview Completed"
+
+    db.commit()
+
+    return {
+        "response": clean_response,
+        "interview_ended": interview_ended
+    }

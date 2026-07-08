@@ -16,10 +16,12 @@ class CandidateCreate(BaseModel):
                     "email": "john.doe@example.com",
                     "phone": "12345678",
                     "cvPath": "uploads/john-doe.pdf",
+                    "cvText": "John Doe is a software engineer with 5 years of experience..."
                 },
                 {
                     "name": "John Doe",
                     "email": "john.doe@example.com",
+                    "cvText": "John Doe is a software engineer with 5 years of experience..."
                 },
             ]
         },
@@ -30,6 +32,7 @@ class CandidateCreate(BaseModel):
     email: EmailStr
     phone: Optional[str] = None
     cv_path: Optional[str] = Field(default=None, alias="cvPath")
+    cv_text: Optional[str] = Field(default=None, alias="cvText")
 
     @model_validator(mode="before")
     @classmethod
@@ -68,6 +71,7 @@ class CandidateResponse(BaseModel):
     email: str
     phone: Optional[str]
     cv_path: Optional[str] = Field(default=None, serialization_alias="cvPath")
+    cv_text: Optional[str]  # ← NEW LINE
     created_at: datetime
     status: CandidateStatus
 
@@ -127,3 +131,19 @@ class AvailabilityUpdate(BaseModel):
 class InterviewScheduleRequest(BaseModel):
     scheduled_at: datetime
     mode: str  # "slot" or "free"
+
+
+# --- MESSAGE SCHEMAS ---
+
+class MessageCreate(BaseModel):
+    content: str
+
+class MessageResponse(BaseModel):
+    id: int
+    interview_id: int
+    role: str
+    content: str
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
