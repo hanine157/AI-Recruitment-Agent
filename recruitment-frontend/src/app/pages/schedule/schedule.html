@@ -1,0 +1,79 @@
+
+<div class="schedule-page">
+
+  <div *ngIf="loading" class="state-box">
+    <div class="spinner"></div>
+    <p>Loading your interview details...</p>
+  </div>
+
+  <div *ngIf="error && !loading" class="state-box error-box">
+    <div class="state-icon">⚠️</div>
+    <p>{{ error }}</p>
+  </div>
+
+  <div *ngIf="!loading && !error && confirmed" class="state-box success-box">
+    <div class="state-icon">✅</div>
+    <h2>Interview Confirmed!</h2>
+    <p>Check your email — we've sent you the interview room link along with the confirmed date and time.</p>
+  </div>
+
+  <div class="schedule-card" *ngIf="!loading && !error && !confirmed && interview">
+    <div class="card-header">
+      <span class="eyebrow">Schedule Your Interview</span>
+      <h1>{{ interview.job.title }}</h1>
+      <p class="subtitle">Hello {{ interview.candidate.firstName }}! Please choose your interview time below.</p>
+    </div>
+
+    <!-- SLOT MODE -->
+    <div class="section" *ngIf="hasSlots">
+      <h3>Available Slots</h3>
+      <div class="slots-grid">
+        <button
+          *ngFor="let slot of interview.available_slots"
+          class="slot-btn"
+          [class.selected]="selectedSlot === slot"
+          (click)="selectSlot(slot)">
+          <span class="slot-date">{{ slot | date:'EEE, d MMM' }}</span>
+          <span class="slot-time">{{ slot | date:'h:mm a' }}</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="divider" *ngIf="hasSlots">
+      <span>or propose your own time</span>
+    </div>
+
+    <!-- FREE MODE -->
+    <div class="section">
+      <h3 *ngIf="!hasSlots">Choose Your Preferred Time</h3>
+      <div class="custom-picker">
+        <div class="field">
+          <label>Date</label>
+          <input
+            type="date"
+            [(ngModel)]="customDate"
+            [min]="minDate"
+            (change)="onCustomDateChange()">
+        </div>
+        <div class="field">
+          <label>Time</label>
+          <input
+            type="time"
+            [(ngModel)]="customTime"
+            (change)="onCustomDateChange()">
+        </div>
+      </div>
+    </div>
+
+    <button
+      class="confirm-btn"
+      [disabled]="!canSubmit || submitting"
+      (click)="confirmSchedule()">
+      <span *ngIf="!submitting">Confirm My Interview Time</span>
+      <span *ngIf="submitting">Confirming...</span>
+    </button>
+
+    <div *ngIf="error" class="inline-error">{{ error }}</div>
+  </div>
+
+</div>

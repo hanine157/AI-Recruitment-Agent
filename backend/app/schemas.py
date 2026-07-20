@@ -1,4 +1,4 @@
-from pydantic import BaseModel, ConfigDict, EmailStr, Field, model_validator
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator, model_validator
 from typing import List, Optional, Literal
 from datetime import datetime
 from app.models import CandidateStatus, InterviewStatus
@@ -137,6 +137,13 @@ class InterviewScheduleRequest(BaseModel):
 
 class MessageCreate(BaseModel):
     content: str
+
+    @field_validator("content")
+    @classmethod
+    def content_must_not_be_blank(cls, v: str) -> str:
+        if not v.strip():
+            raise ValueError("Content cannot be empty")
+        return v.strip()
 
 class MessageResponse(BaseModel):
     id: int

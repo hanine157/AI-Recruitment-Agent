@@ -29,6 +29,8 @@ class CandidateStatus(str, Enum):
     TO_INTERVIEW = "To Interview"
     WAITING_CONFIRMATION = "Waiting Confirmation"
     INTERVIEW_SCHEDULED = "Interview Scheduled"
+    IN_PROGRESS = "In Progress"
+    INTERVIEW_COMPLETED = "Interview Completed"
     HIRED = "Hired"
     REJECTED = "Rejected"
 
@@ -60,6 +62,7 @@ class Interview(Base):
     token = Column(String(255), unique=True, nullable=True)  # ← NEW LINE
     scheduled_at = Column(DateTime, nullable=True)  # ← NEW LINE
     available_slots = Column(JSON, nullable=True)
+    
 
 
 
@@ -84,3 +87,5 @@ class Message(Base):
     role = Column(String(20))  # "ai" or "candidate"
     content = Column(Text)
     created_at = Column(DateTime, default=func.now())
+
+

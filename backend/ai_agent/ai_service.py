@@ -66,21 +66,58 @@ def continue_interview(
         candidate_name=candidate_name
     )
 
-    if force_end:
-        system += (
-            "\n\nImportant: this should be the final interview question. "
-            "If the interview has concluded, end your response with [INTERVIEW_END]."
-        )
+    # count how many questions AI has already asked
+    ai_question_count = sum(
+        1 for msg in conversation_history
+        if msg.role == "ai"
+    )
 
-    # build the messages list for Groq
+    # inject progress awareness into the system prompt
+    system += f"""
+
+CURRENT INTERVIEW PROGRESS:
+
+The interviewer has already asked approximately {ai_question_count} questions.
+
+Continue from this stage of the interview.
+
+Do not restart the interview.
+
+Do not repeat previous questions.
+
+Increase the difficulty naturally as the interview progresses.
+"""
+
+    # add force end instruction if needed
+    if force_end:
+        system += """
+
+IMPORTANT:
+
+You have asked enough questions.
+
+Conclude the interview now professionally.
+
+Thank the candidate by name.
+
+Add [INTERVIEW_END] at the very end of your message.
+"""
+
+    # build messages list
     messages = [{"role": "system", "content": system}]
 
-    # add the full conversation history
+    # add full conversation history
     for msg in conversation_history:
         if msg.role == "ai":
-            messages.append({"role": "assistant", "content": msg.content})
+            messages.append({
+                "role": "assistant",
+                "content": msg.content
+            })
         else:
-            messages.append({"role": "user", "content": msg.content})
+            messages.append({
+                "role": "user",
+                "content": msg.content
+            })
 
     response = client.chat.completions.create(
         model="llama-3.3-70b-versatile",

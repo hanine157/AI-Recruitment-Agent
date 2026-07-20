@@ -1,0 +1,129 @@
+<div class="interview-container">
+
+  <!-- HEADER -->
+  <div class="header">
+    <h1>🤖 AI Interview</h1>
+    <span *ngIf="jobTitle" class="job-title">{{ jobTitle }}</span>
+    <span *ngIf="questionsAsked > 0" class="questions-count">
+      Questions: {{ questionsAsked }}/10
+    </span>
+  </div>
+
+  <!-- MAIN CONTENT -->
+  <div class="main-content">
+
+    <!-- LEFT SIDE — Camera -->
+    <div class="camera-section">
+      <div class="camera-container">
+        <video #videoElement autoplay muted playsinline></video>
+        <div class="camera-label">📹 Your Camera</div>
+      </div>
+      <!-- 🆕 Face detection indicators -->
+<div class="face-metrics" *ngIf="modelsLoaded">
+  <div class="metric">
+    <span class="metric-icon">{{ faceDetected ? '✅' : '⚠️' }}</span>
+    <span class="metric-label">{{ faceDetected ? 'Face detected' : 'No face detected' }}</span>
+  </div>
+  <div class="metric" *ngIf="faceDetected">
+    <span class="metric-icon">😊</span>
+    <span class="metric-label">Expression: <strong>{{ currentExpression }}</strong></span>
+  </div>
+  <div class="metric" *ngIf="faceDetected">
+    <span class="metric-icon">👁️</span>
+    <span class="metric-label">Eye Contact: <strong>{{ eyeContactEstimate }}%</strong></span>
+  </div>
+  <div class="metric" *ngIf="faceDetected">
+    <span class="metric-icon">📊</span>
+    <span class="metric-label">Attention: <strong>{{ attentionLevel }}</strong></span>
+  </div>
+</div>
+
+      <!-- Interview info -->
+      <div class="info-box" *ngIf="interviewStarted">
+        <p>👤 <strong>{{ candidateName }}</strong></p>
+        <p>💼 <strong>{{ jobTitle }}</strong></p>
+        <p>🎯 Answer clearly and confidently</p>
+      </div>
+
+      <!-- Start button -->
+      <button
+        *ngIf="!interviewStarted && !loading"
+        class="start-btn"
+        (click)="startInterview()">
+        🚀 Start Interview
+      </button>
+
+      <div *ngIf="loading && !interviewStarted" class="loading-box">
+        ⏳ Connecting to AI interviewer...
+      </div>
+    </div>
+
+    <!-- RIGHT SIDE — Chat -->
+    <div class="chat-section">
+
+      <!-- Welcome screen -->
+      <div class="welcome" *ngIf="!interviewStarted && !loading">
+        <h2>Welcome to your AI Interview! 👋</h2>
+        <p>Make sure your camera and microphone are ready.</p>
+        <p>Click <strong>"Start Interview"</strong> when you're ready.</p>
+        <ul>
+          <li>✅ Answer one question at a time</li>
+          <li>✅ Be clear and concise</li>
+          <li>✅ Take your time before answering</li>
+          <li>✅ Press Enter or click Send to submit</li>
+        </ul>
+      </div>
+
+      <!-- Chat messages -->
+      <div class="chat-box" #chatBox *ngIf="interviewStarted">
+        <div
+          *ngFor="let message of messages"
+          class="message"
+          [ngClass]="message.role === 'ai' ? 'ai-message' : 'candidate-message'">
+          <div class="message-avatar">
+            {{ message.role === 'ai' ? '🤖' : '👤' }}
+          </div>
+          <div class="message-content">
+            {{ message.content }}
+          </div>
+        </div>
+
+        <!-- Loading indicator -->
+        <div class="message ai-message" *ngIf="loading">
+          <div class="message-avatar">🤖</div>
+          <div class="message-content typing">
+            <span></span>
+            <span></span>
+            <span></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Completed message -->
+      <div class="completed-box" *ngIf="interviewCompleted">
+        <h2>🎉 Interview Complete!</h2>
+        <p>Thank you for completing the interview.</p>
+        <p>Our team will review your responses and get back to you soon.</p>
+        <p>Good luck! 🍀</p>
+      </div>
+
+      <!-- Input area -->
+      <div class="input-area" *ngIf="interviewStarted && !interviewCompleted">
+        <textarea
+          [(ngModel)]="userInput"
+          (keypress)="onKeyPress($event)"
+          placeholder="Type your answer here... (Press Enter to send)"
+          [disabled]="loading"
+          rows="3">
+        </textarea>
+        <button
+          (click)="sendMessage()"
+          [disabled]="loading || !userInput.trim()"
+          class="send-btn">
+          {{ loading ? '⏳' : 'Send 🚀' }}
+        </button>
+      </div>
+
+    </div>
+  </div>
+</div>

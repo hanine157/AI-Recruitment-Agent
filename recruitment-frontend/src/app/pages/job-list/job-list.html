@@ -1,0 +1,23 @@
+<div class="dashboard">
+  <h1>Jobs</h1>
+
+  <div *ngIf="loading">Loading...</div>
+  <div *ngIf="error" class="error">{{ error }}</div>
+
+  <table *ngIf="!loading && !error">
+    <thead>
+      <tr>
+        <th>Title</th>
+        <th>Department</th>
+        <th>Required Skills</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr *ngFor="let job of jobs">
+        <td>{{ job.title }}</td>
+        <td>{{ job.department }}</td>
+        <td>{{ job.required_skills }}</td>
+      </tr>
+    </tbody>
+  </table>
+</div>

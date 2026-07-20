@@ -1,4 +1,5 @@
 from sqlalchemy.orm import Session
+
 from . import models, schemas
 import json
 import uuid
@@ -91,6 +92,7 @@ def update_interview_status(db: Session, interview_id: int, status: str):
 
 def create_interview_with_token(db: Session, candidate_id: int, job_id: int):
     token = str(uuid.uuid4())  # generates a unique token like "a3f8c2d1-9b4e..."
+
     db_interview = models.Interview(
         candidate_id=candidate_id,
         job_id=job_id,
@@ -101,6 +103,33 @@ def create_interview_with_token(db: Session, candidate_id: int, job_id: int):
     db.commit()
     db.refresh(db_interview)
     return db_interview
+import uuid
+
+def create_or_update_interview(db, candidate_id: int, job_id: int):
+
+    interview = (
+        db.query(models.Interview)
+        .filter(models.Interview.candidate_id == candidate_id)
+        .first()
+    )
+
+    if interview:
+        interview.job_id = job_id
+        interview.token = str(uuid.uuid4())
+        interview.status = "Pending"
+        interview.scheduled_at = None
+        interview.available_slots = None
+
+        db.commit()
+        db.refresh(interview)
+
+        return interview
+
+    return create_interview_with_token(
+        db=db,
+        candidate_id=candidate_id,
+        job_id=job_id
+    )
 
 
 def schedule_interview(db: Session, token: str, scheduled_at: datetime, mode: str):
@@ -111,19 +140,23 @@ def schedule_interview(db: Session, token: str, scheduled_at: datetime, mode: st
     if not interview:
         return None
 
+    normalized_mode = (mode or "").strip().lower()
+    normalized_scheduled_at = scheduled_at.replace(tzinfo=None) if scheduled_at.tzinfo else scheduled_at
+
     # check if already scheduled
     if interview.status in ["Scheduled", "Awaiting Confirmation"]:
         raise ValueError("Interview is already scheduled")
 
     # check if date is in the past
-    if scheduled_at < datetime.now():
+    now = datetime.now(scheduled_at.tzinfo) if scheduled_at.tzinfo else datetime.now()
+    if scheduled_at < now:
         raise ValueError("Cannot schedule in the past")
 
     # check working hours
-    if scheduled_at.hour < 8 or scheduled_at.hour >= 18:
+    if normalized_scheduled_at.hour < 8 or normalized_scheduled_at.hour >= 18:
         raise ValueError("Must be between 08:00 and 18:00")
 
-    if mode == "slot":
+    if normalized_mode == "slot":
         # validate slot exists in available_slots
         raw_slots = interview.available_slots or []
         if isinstance(raw_slots, str):
@@ -136,17 +169,29 @@ def schedule_interview(db: Session, token: str, scheduled_at: datetime, mode: st
         else:
             slots = []
 
-        if scheduled_at.isoformat() not in slots:
+        normalized_slots = []
+        for slot in slots:
+            if isinstance(slot, str):
+                try:
+                    normalized_slots.append(datetime.fromisoformat(slot).replace(tzinfo=None))
+                except ValueError:
+                    continue
+            elif isinstance(slot, datetime):
+                normalized_slots.append(slot.replace(tzinfo=None))
+
+        if normalized_scheduled_at not in normalized_slots:
             raise ValueError("Selected slot is not available")
 
         # slot mode → automatically scheduled, no confirmation needed
         interview.scheduled_at = scheduled_at
         interview.status = "Scheduled"
 
-    elif mode == "free":
+    elif normalized_mode == "free":
         # free mode → needs recruiter confirmation
         interview.scheduled_at = scheduled_at
         interview.status = "Awaiting Confirmation"
+    else:
+        raise ValueError("Invalid scheduling mode")
 
     db.commit()
     db.refresh(interview)

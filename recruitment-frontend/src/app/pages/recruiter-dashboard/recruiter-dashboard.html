@@ -1,0 +1,366 @@
+<div class="dashboard">
+
+  <div class="header">
+    <div class="header-left">
+      <span class="date-label">Today is {{ today | date:'dd MMMM y' }}</span>
+      <h1>Hey <strong>{{ recruiterName }}</strong>! Here's your recruitment overview.</h1>
+    </div>
+    <div class="header-right">
+      <button class="btn-secondary" (click)="loadData()">↻ Refresh</button>
+      <a class="btn-primary" routerLink="/jobs">Manage Jobs</a>
+    </div>
+  </div>
+
+  <div *ngIf="loading" class="loading">Loading...</div>
+  <div *ngIf="error" class="error">{{ error }}</div>
+
+  <ng-container *ngIf="!loading && !error">
+
+    <div class="stats">
+      <div class="stat-card blue">
+        <div class="stat-icon">👥</div>
+        <div>
+          <span class="stat-number">{{ totalCandidates }}</span>
+          <span class="stat-label">Total Candidates</span>
+        </div>
+      </div>
+      <div class="stat-card orange">
+        <div class="stat-icon">💼</div>
+        <div>
+          <span class="stat-number">{{ totalJobs }}</span>
+          <span class="stat-label">Total Jobs</span>
+        </div>
+      </div>
+      <div class="stat-card red">
+        <div class="stat-icon">🔴</div>
+        <div>
+          <span class="stat-number">{{ inProgressInterviews }}</span>
+          <span class="stat-label">In Progress Now</span>
+        </div>
+      </div>
+      <div class="stat-card green">
+        <div class="stat-icon">✅</div>
+        <div>
+          <span class="stat-number">{{ completedInterviews }}</span>
+          <span class="stat-label">Completed</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="main-grid">
+      <div class="left-col">
+
+        <section class="section">
+          <div class="section-header">
+            <span class="header-icon purple">👥</span>
+            <h2>Candidates</h2>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Job Applied</th>
+                <th>Scheduled At</th>
+                <th>CV</th>
+                <th>Status</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let candidate of candidates">
+
+                <!-- Name -->
+                <td>
+                  <div class="candidate-cell">
+                    <span class="avatar"
+                      [style.background]="avatarColor(candidate.first_name)">
+                      {{ initials(candidate.first_name, candidate.last_name) }}
+                    </span>
+                    <strong>{{ candidate.firstName }} {{ candidate.lastName }}</strong>
+                  </div>
+                </td>
+
+                <!-- Email -->
+                <td>{{ candidate.email }}</td>
+
+                <!-- Job Applied -->
+                <td>{{ getJobTitleForCandidate(candidate.id) }}</td>
+
+                <!-- Scheduled At -->
+                <td>
+                  <span *ngIf="getScheduledAtForCandidate(candidate.id) as sched; else noSchedule">
+                    {{ sched | date:'d MMM, h:mm a' }}
+                  </span>
+                  <ng-template #noSchedule>
+                    <span class="no-data">—</span>
+                  </ng-template>
+                </td>
+
+                <!-- CV -->
+                <td>
+                  <span *ngIf="candidate.cv_text" class="cv-badge cv-uploaded">
+                    ✅ CV Uploaded
+                  </span>
+                  <button
+                    *ngIf="!candidate.cv_text"
+                    class="cv-upload-btn"
+                    (click)="openCvUpload(candidate)">
+                    📄 Upload CV
+                  </button>
+                </td>
+
+                <!-- Status -->
+                <td>
+  <span
+    class="badge"
+    [ngClass]="getStatusClass(getInterviewForCandidate(candidate.id)?.status || candidate.status)">
+
+    {{ getInterviewForCandidate(candidate.id)?.status || candidate.status }}
+
+  </span>
+</td>
+
+                <!-- Action -->
+                <td>
+                  <ng-container [ngSwitch]="getRecruiterAction(candidate)">
+
+                    <select
+                      *ngSwitchCase="'change-status'"
+                      (change)="changeStatus(candidate, $any($event.target).value)"
+                      class="status-select">
+                      <option value="">Change Status</option>
+                      <option value="To Interview">To Interview</option>
+                      <option value="Rejected">Rejected</option>
+                    </select>
+
+                    <button
+                      *ngSwitchCase="'set-slots'"
+                      class="btn-small"
+                      (click)="openSlotsModal(getInterviewForCandidate(candidate.id))">
+                      📅 Set Slots
+                    </button>
+
+                    <span *ngSwitchCase="'waiting'" class="waiting-badge">
+                      Waiting Candidate
+                    </span>
+
+                    <button
+                      *ngSwitchCase="'view-interview'"
+                      class="btn-small"
+                      (click)="openInterview(candidate)">
+                      🎥 View Interview
+                    </button>
+
+                    <button
+                      *ngSwitchCase="'live'"
+                      class="btn-small btn-live"
+                      (click)="openInterview(candidate)">
+                      🔴 Live
+                    </button>
+
+                    <button
+                      *ngSwitchCase="'view-report'"
+                      class="btn-small">
+                      📄 View Report
+                    </button>
+
+                    <span *ngSwitchDefault>—</span>
+
+                  </ng-container>
+                </td>
+
+              </tr>
+              <tr *ngIf="candidates.length === 0">
+                <td colspan="7" class="no-data"
+                  style="text-align:center; padding: 30px;">
+                  No candidates yet
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section class="section">
+          <div class="section-header">
+            <span class="header-icon amber">💼</span>
+            <h2>Jobs</h2>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Title</th>
+                <th>Department</th>
+                <th>Description</th>
+                <th>Required Skills</th>
+                <th>Posted</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let job of jobs">
+                <td><strong>{{ job.title }}</strong></td>
+                <td>{{ job.department }}</td>
+                <td class="description-cell">{{ job.description }}</td>
+                <td>{{ job.required_skills }}</td>
+                <td>{{ job.created_at | date:'d MMM y' }}</td>
+              </tr>
+              <tr *ngIf="jobs.length === 0">
+                <td colspan="5" class="no-data"
+                  style="text-align:center; padding: 30px;">
+                  No jobs yet
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </section>
+
+      </div>
+
+      <div class="right-col">
+        <section class="section calendar-section">
+          <div class="section-header">
+            <span class="header-icon blue">📅</span>
+            <h2>Interview Calendar</h2>
+          </div>
+          <div class="calendar">
+            <div class="calendar-nav">
+              <button class="cal-nav-btn" (click)="prevMonth()">‹</button>
+              <div class="calendar-month" (click)="goToToday()">
+                {{ viewedMonth | date:'MMMM y' }}
+              </div>
+              <button class="cal-nav-btn" (click)="nextMonth()">›</button>
+            </div>
+            <div class="calendar-grid-header">
+              <span *ngFor="let d of ['M','T','W','T','F','S','S']">{{ d }}</span>
+            </div>
+            <div class="calendar-week" *ngFor="let week of calendarWeeks">
+              <div
+                class="calendar-day"
+                *ngFor="let day of week"
+                [class.other-month]="!day.inMonth"
+                [class.today]="day.isToday"
+                [class.has-interview]="day.interviews.length > 0">
+                <span>{{ day.date.getDate() }}</span>
+                <div class="day-dot" *ngIf="day.interviews.length > 0"></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="upcoming-list">
+            <div class="upcoming-title">Upcoming Interviews</div>
+            <div class="upcoming-item" *ngFor="let interview of upcomingInterviews">
+              <div class="upcoming-date">
+                <span class="upcoming-day">{{ interview.scheduled_at | date:'d' }}</span>
+                <span class="upcoming-mon">{{ interview.scheduled_at | date:'MMM' }}</span>
+              </div>
+              <div class="upcoming-info">
+                <strong>{{ getCandidateName(interview) }}</strong>
+                <span>
+                  {{ getJobTitle(interview) }}
+                  <span *ngIf="interview.scheduled_at">
+                    · {{ interview.scheduled_at | date:'h:mm a' }}
+                  </span>
+                </span>
+                <button
+                  *ngIf="interview.status === 'Pending'"
+                  class="btn-secondary"
+                  (click)="openSlotsModal(interview)">
+                  Set Slots
+                </button>
+              </div>
+            </div>
+            <div *ngIf="upcomingInterviews.length === 0" class="no-data">
+              No interviews scheduled
+            </div>
+          </div>
+        </section>
+      </div>
+
+    </div>
+  </ng-container>
+
+  <!-- SLOTS MODAL -->
+  <div class="modal-backdrop" *ngIf="showSlotsModal">
+    <div class="slots-modal">
+      <h2>📅 Set Interview Slots</h2>
+      <p>
+        Candidate:
+        <strong>
+          {{ selectedInterview?.candidate?.firstName }}
+          {{ selectedInterview?.candidate?.lastName }}
+        </strong>
+      </p>
+      <div class="slot-input" *ngFor="let slot of slotInputs; let i = index">
+        <label>Slot {{ i + 1 }}</label>
+        <input type="datetime-local" [(ngModel)]="slotInputs[i]">
+      </div>
+      <div class="modal-actions">
+        <button (click)="closeSlotsModal()">Cancel</button>
+        <button (click)="saveSlots()">Save Slots</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- JOB SELECTION MODAL -->
+  <div class="modal-overlay" *ngIf="showAssignJobModal" (click)="closeModal()">
+    <div class="modal" (click)="$event.stopPropagation()">
+      <h2>Move Candidate to Interview</h2>
+      <div class="modal-candidate">
+        <p>👤 <strong>{{ selectedCandidate?.firstName }} {{ selectedCandidate?.lastName }}</strong></p>
+        <p>📧 {{ selectedCandidate?.email }}</p>
+      </div>
+      <div class="modal-field">
+        <label>Select Job Position:</label>
+        <select [(ngModel)]="selectedJobId" class="job-select">
+          <option [ngValue]="null">-- Choose a job --</option>
+          <option *ngFor="let job of jobs" [ngValue]="job.id">
+            {{ job.title }} — {{ job.department }}
+          </option>
+        </select>
+      </div>
+      <div class="modal-actions">
+        <button class="cancel-btn" (click)="closeModal()">Cancel</button>
+        <button
+          class="confirm-btn"
+          [disabled]="!selectedJobId"
+          (click)="confirmAssignJob()">
+          Confirm & Send Email 📧
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- CV UPLOAD MODAL -->
+  <div class="modal-overlay" *ngIf="showCvUploadModal" (click)="closeCvUpload()">
+    <div class="modal" (click)="$event.stopPropagation()">
+      <h2>📄 Upload CV</h2>
+      <div class="modal-candidate">
+        <p>👤 <strong>{{ selectedCandidateForCv?.first_name }} {{ selectedCandidateForCv?.last_name }}</strong></p>
+        <p>📧 {{ selectedCandidateForCv?.email }}</p>
+      </div>
+      <div class="cv-success" *ngIf="cvUploadSuccess">
+        <p>✅ CV uploaded successfully!</p>
+        <p>The AI will now use this CV during the interview.</p>
+        <button class="confirm-btn" (click)="closeCvUpload()">Close</button>
+      </div>
+      <div *ngIf="!cvUploadSuccess">
+        <div class="modal-field">
+          <label>Select PDF file:</label>
+          <input
+            type="file"
+            accept=".pdf"
+            (change)="uploadCv($event)"
+            [disabled]="uploadingCv"
+            class="file-input">
+        </div>
+        <div class="uploading-indicator" *ngIf="uploadingCv">
+          ⏳ Uploading and extracting CV text...
+        </div>
+        <div class="modal-actions">
+          <button class="cancel-btn" (click)="closeCvUpload()">Cancel</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
