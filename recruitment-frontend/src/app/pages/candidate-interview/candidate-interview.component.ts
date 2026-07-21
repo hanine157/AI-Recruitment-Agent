@@ -14,7 +14,6 @@ import {
 import { HttpClient } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
-private faceapi: any;
 
 type InterviewMessage = {
   role: 'ai' | 'candidate';
@@ -31,6 +30,7 @@ type InterviewMessage = {
 export class CandidateInterviewComponent implements OnInit, AfterViewInit, OnDestroy {
   @ViewChild('videoElement') videoElement!: ElementRef<HTMLVideoElement>;
   @ViewChild('chatBox') chatBox!: ElementRef<HTMLElement>;
+  private faceapi: any;
 
   constructor(
     private readonly route: ActivatedRoute,
@@ -38,7 +38,7 @@ export class CandidateInterviewComponent implements OnInit, AfterViewInit, OnDes
     private readonly ngZone: NgZone,
     private readonly cdr: ChangeDetectorRef,
     @Inject(PLATFORM_ID) private readonly platformId: object,
-  ) {}
+  ) { }
 
   token = '';
   messages: InterviewMessage[] = [];
@@ -55,8 +55,13 @@ export class CandidateInterviewComponent implements OnInit, AfterViewInit, OnDes
   currentExpression = '-';
   eyeContactEstimate = 0;
   attentionLevel = '-';
+  // 🆕 Voice input state
+  isRecording = false;
+  mediaRecorder: MediaRecorder | null = null;
+  audioChunks: Blob[] = [];
 
   private detectionInterval: ReturnType<typeof setInterval> | null = null;
+  private metricsSaveInterval: ReturnType<typeof setInterval> | null = null;
   private isDetecting = false;
 
   ngOnInit() {
@@ -80,9 +85,9 @@ export class CandidateInterviewComponent implements OnInit, AfterViewInit, OnDes
       video.srcObject = stream;
       await video.play();
       const module = await import('@vladmandic/face-api');
-this.faceapi = module;
+      this.faceapi = module;
 
-await this.loadFaceModels();
+      await this.loadFaceModels();
     } catch (err) {
       console.error('Failed to start camera:', err);
     }
@@ -92,6 +97,9 @@ await this.loadFaceModels();
     if (this.detectionInterval) {
       clearInterval(this.detectionInterval);
       this.detectionInterval = null;
+    }
+    if (this.metricsSaveInterval) {
+      clearInterval(this.metricsSaveInterval);
     }
 
     const video = this.videoElement?.nativeElement;
@@ -104,10 +112,10 @@ await this.loadFaceModels();
       const modelUrl = '/models';
 
       await Promise.all([
-  this.faceapi.nets.tinyFaceDetector.loadFromUri(modelUrl),
-  this.faceapi.nets.faceLandmark68Net.loadFromUri(modelUrl),
-  this.faceapi.nets.faceExpressionNet.loadFromUri(modelUrl),
-]);
+        this.faceapi.nets.tinyFaceDetector.loadFromUri(modelUrl),
+        this.faceapi.nets.faceLandmark68Net.loadFromUri(modelUrl),
+        this.faceapi.nets.faceExpressionNet.loadFromUri(modelUrl),
+      ]);
 
       this.modelsLoaded = true;
       this.ngZone.runOutsideAngular(() => {
@@ -134,12 +142,14 @@ await this.loadFaceModels();
       this.isDetecting = true;
       try {
         const result = await this.faceapi
-  .detectSingleFace(video, new this.faceapi.TinyFaceDetectorOptions())
+          .detectSingleFace(video, new this.faceapi.TinyFaceDetectorOptions())
+          .withFaceLandmarks()
+          .withFaceExpressions();
 
         this.ngZone.run(() => {
           if (result) {
             const expressions = result.expressions;
-            const topExpression = Object.entries(expressions).sort((a, b) => b[1] - a[1])[0];
+            const topExpression = (Object.entries(expressions) as [string, number][]).sort((a, b) => b[1] - a[1])[0];
 
             this.faceDetected = true;
             this.currentExpression = topExpression ? topExpression[0] : '-';
@@ -181,6 +191,7 @@ await this.loadFaceModels();
             this.loading = false;
             this.cdr.detectChanges();
             this.scrollToBottom();
+            this.startMetricsSaving();
           });
         },
         error: (err) => {
@@ -250,5 +261,69 @@ await this.loadFaceModels();
         chatBox.scrollTop = chatBox.scrollHeight;
       }
     }, 100);
+  }
+
+  private startMetricsSaving(): void {
+    if (!isPlatformBrowser(this.platformId) || this.metricsSaveInterval) return;
+
+    this.metricsSaveInterval = setInterval(() => {
+      if (!this.faceDetected || !this.interviewStarted || this.interviewCompleted) return;
+
+      this.http.post(`http://localhost:8000/interviews/${this.token}/face-metrics`, {
+        eye_contact: this.eyeContactEstimate,
+        expression: this.currentExpression,
+        attention_level: this.attentionLevel,
+      }).subscribe({
+        error: (err) => console.error('Failed to save face metric:', err),
+      });
+    }, 30000);
+  }
+
+  // 🆕 Voice input methods
+  async toggleRecording() {
+    if (this.isRecording) {
+      this.stopRecording();
+    } else {
+      await this.startRecording();
+    }
+  }
+
+  async startRecording() {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      this.audioChunks = [];
+      this.mediaRecorder = new MediaRecorder(stream);
+
+      this.mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          this.audioChunks.push(event.data);
+        }
+      };
+
+      this.mediaRecorder.onstop = () => {
+        const audioBlob = new Blob(this.audioChunks, { type: 'audio/webm' });
+        console.log('Audio recorded:', audioBlob.size, 'bytes'); // temporary check for today
+        stream.getTracks().forEach(track => track.stop()); // release the mic
+      };
+
+      this.mediaRecorder.start();
+      this.ngZone.run(() => {
+        this.isRecording = true;
+        this.cdr.detectChanges();
+      });
+    } catch (err) {
+      console.error('Microphone access error:', err);
+      alert('Could not access microphone. Please check permissions.');
+    }
+  }
+
+  stopRecording() {
+    if (this.mediaRecorder && this.isRecording) {
+      this.mediaRecorder.stop();
+      this.ngZone.run(() => {
+        this.isRecording = false;
+        this.cdr.detectChanges();
+      });
+    }
   }
 }

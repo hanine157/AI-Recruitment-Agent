@@ -154,3 +154,9 @@ class MessageResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class FaceMetricCreate(BaseModel):
+    eye_contact: int
+    expression: str
+    attention_level: str

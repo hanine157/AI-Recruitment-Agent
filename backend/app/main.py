@@ -172,6 +172,22 @@ def get_interview_by_token(token: str, db: Session = Depends(get_db)):
     return interview
 
 
+@app.post("/interviews/{token}/face-metrics")
+def save_face_metrics(token: str, metric: schemas.FaceMetricCreate, db: Session = Depends(get_db)):
+    interview = db.query(models.Interview).filter(models.Interview.token == token).first()
+    if interview is None:
+        raise HTTPException(status_code=404, detail="Interview not found")
+
+    crud.save_face_metric(
+        db=db,
+        interview_id=interview.id,
+        eye_contact=metric.eye_contact,
+        expression=metric.expression,
+        attention_level=metric.attention_level
+    )
+
+    return {"message": "Face metric saved"}
+
 @app.patch("/candidates/{candidate_id}/status", response_model=schemas.CandidateResponse)
 def update_candidate_status(
     candidate_id: int,

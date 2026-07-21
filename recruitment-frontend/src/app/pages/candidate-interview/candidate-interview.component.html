@@ -19,24 +19,24 @@
         <div class="camera-label">📹 Your Camera</div>
       </div>
       <!-- 🆕 Face detection indicators -->
-<div class="face-metrics" *ngIf="modelsLoaded">
-  <div class="metric">
-    <span class="metric-icon">{{ faceDetected ? '✅' : '⚠️' }}</span>
-    <span class="metric-label">{{ faceDetected ? 'Face detected' : 'No face detected' }}</span>
-  </div>
-  <div class="metric" *ngIf="faceDetected">
-    <span class="metric-icon">😊</span>
-    <span class="metric-label">Expression: <strong>{{ currentExpression }}</strong></span>
-  </div>
-  <div class="metric" *ngIf="faceDetected">
-    <span class="metric-icon">👁️</span>
-    <span class="metric-label">Eye Contact: <strong>{{ eyeContactEstimate }}%</strong></span>
-  </div>
-  <div class="metric" *ngIf="faceDetected">
-    <span class="metric-icon">📊</span>
-    <span class="metric-label">Attention: <strong>{{ attentionLevel }}</strong></span>
-  </div>
-</div>
+      <div class="face-metrics" *ngIf="modelsLoaded">
+        <div class="metric">
+          <span class="metric-icon">{{ faceDetected ? '✅' : '⚠️' }}</span>
+          <span class="metric-label">{{ faceDetected ? 'Face detected' : 'No face detected' }}</span>
+        </div>
+        <div class="metric" *ngIf="faceDetected">
+          <span class="metric-icon">😊</span>
+          <span class="metric-label">Expression: <strong>{{ currentExpression }}</strong></span>
+        </div>
+        <div class="metric" *ngIf="faceDetected">
+          <span class="metric-icon">👁️</span>
+          <span class="metric-label">Eye Contact: <strong>{{ eyeContactEstimate }}%</strong></span>
+        </div>
+        <div class="metric" *ngIf="faceDetected">
+          <span class="metric-icon">📊</span>
+          <span class="metric-label">Attention: <strong>{{ attentionLevel }}</strong></span>
+        </div>
+      </div>
 
       <!-- Interview info -->
       <div class="info-box" *ngIf="interviewStarted">
@@ -46,10 +46,7 @@
       </div>
 
       <!-- Start button -->
-      <button
-        *ngIf="!interviewStarted && !loading"
-        class="start-btn"
-        (click)="startInterview()">
+      <button *ngIf="!interviewStarted && !loading" class="start-btn" (click)="startInterview()">
         🚀 Start Interview
       </button>
 
@@ -76,9 +73,7 @@
 
       <!-- Chat messages -->
       <div class="chat-box" #chatBox *ngIf="interviewStarted">
-        <div
-          *ngFor="let message of messages"
-          class="message"
+        <div *ngFor="let message of messages" class="message"
           [ngClass]="message.role === 'ai' ? 'ai-message' : 'candidate-message'">
           <div class="message-avatar">
             {{ message.role === 'ai' ? '🤖' : '👤' }}
@@ -109,18 +104,14 @@
 
       <!-- Input area -->
       <div class="input-area" *ngIf="interviewStarted && !interviewCompleted">
-        <textarea
-          [(ngModel)]="userInput"
-          (keypress)="onKeyPress($event)"
-          placeholder="Type your answer here... (Press Enter to send)"
-          [disabled]="loading"
-          rows="3">
+        <textarea [(ngModel)]="userInput" (keypress)="onKeyPress($event)"
+          placeholder="Type your answer here... (Press Enter to send)" [disabled]="loading" rows="3">
         </textarea>
-        <button
-          (click)="sendMessage()"
-          [disabled]="loading || !userInput.trim()"
-          class="send-btn">
+        <button (click)="sendMessage()" [disabled]="loading || !userInput.trim()" class="send-btn">
           {{ loading ? '⏳' : 'Send 🚀' }}
+        </button>
+        <button (click)="toggleRecording()" [disabled]="loading" class="mic-btn" [class.recording]="isRecording">
+          {{ isRecording ? '⏹️ Stop' : '🎤' }}
         </button>
       </div>
 

@@ -8,7 +8,7 @@ import { Observable } from 'rxjs';
 export class InterviewService {
   private baseUrl = 'http://localhost:8000';
 
-  constructor(private http: HttpClient) {}
+  constructor(private http: HttpClient) { }
 
   getInterviewByToken(token: string): Observable<any> {
     return this.http.get<any>(`${this.baseUrl}/interviews/token/${token}`);
@@ -17,7 +17,20 @@ export class InterviewService {
   scheduleInterview(token: string, scheduledAt: string, mode: 'slot' | 'free'): Observable<any> {
     return this.http.patch<any>(`${this.baseUrl}/interviews/${token}/schedule`, {
       scheduled_at: scheduledAt,
-      mode: mode
+      mode
+    });
+  }
+
+  saveFaceMetric(
+    token: string,
+    eyeContact: number,
+    expression: string,
+    attentionLevel: string
+  ): Observable<any> {
+    return this.http.post<any>(`${this.baseUrl}/interviews/${token}/face-metrics`, {
+      eye_contact: eyeContact,
+      expression,
+      attention_level: attentionLevel
     });
   }
 }

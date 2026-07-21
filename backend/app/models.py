@@ -89,3 +89,12 @@ class Message(Base):
     created_at = Column(DateTime, default=func.now())
 
 
+class FaceMetric(Base):
+    __tablename__ = "face_metrics"
+
+    id = Column(Integer, primary_key=True, index=True)
+    interview_id = Column(Integer, ForeignKey("interviews.id"))
+    eye_contact = Column(Integer)  # percentage 0-100
+    expression = Column(String(50))
+    attention_level = Column(String(20))
+    created_at = Column(DateTime, default=func.now())

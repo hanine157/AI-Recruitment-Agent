@@ -221,3 +221,15 @@ def count_ai_questions(db: Session, interview_id: int) -> int:
         models.Message.interview_id == interview_id,
         models.Message.role == "ai"
     ).count()
+
+def save_face_metric(db: Session, interview_id: int, eye_contact: int, expression: str, attention_level: str):
+    metric = models.FaceMetric(
+        interview_id=interview_id,
+        eye_contact=eye_contact,
+        expression=expression,
+        attention_level=attention_level
+    )
+    db.add(metric)
+    db.commit()
+    db.refresh(metric)
+    return metric
